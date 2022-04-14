@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Auth;
 use App\Models\User;
+use Illuminate\Support\Facades\Hash;
 
 class authController extends Controller
 {
@@ -32,15 +34,45 @@ class authController extends Controller
         $user = new User();
         $user->name = $request->all()['name'];
         $user->email = $request->all()['email'];
-        $user->password = $request->all()['password'];
+        $user->password = Hash::make($request->all()['password']);
         $user->save();
 
-        $token = $user->createToken('auth_token');  
-
-        dd($token);
-
+        $token = $user->createToken('auth_token');
+        
         return response()->json(["access_token"=>$token,
                                 "token_type" => "Bearer"
                                 ]);
+    }
+
+    public function loginUser(Request $request){
+
+        $hash_password = Hash::make($request->all()['password']);
+        $email = $request->all()["email"];
+
+        $all_data = [
+            "email" => $email,
+            "password" => $hash_password
+        ];
+
+        // dd($request->only('email', 'password'));
+
+        if(!Auth::attempt($request->only('email', 'password'))){
+            return response()->json([
+                'message' => 'Неверный логин или пароль'
+            ], 401);
+        }
+
+        $user = User::where('email', $request->all()["email"])->first();
+        
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        return response()->json([
+            'access_token' => $token,
+            'token_type' => 'Bearer',
+        ]);
+    }
+
+    public function me(Request $request){
+        return $request->user();
     }
 }
